@@ -581,3 +581,53 @@ After completing Week 6, the project demonstrates:
 The complete project now extends the original workflow:
 
 **Ingestion → Validation → Relational Storage → Incremental Processing → Analytical Modeling → SQL Analysis → PySpark Processing → Data Quality → Automated Testing**
+
+# Airflow vs Dagster: Conceptual Comparison
+
+## 1. DAG and Job
+
+- **Airflow:** A DAG (Directed Acyclic Graph) defines the tasks and their dependencies.
+- **Dagster:** A job defines executable operations and their dependencies. In this project, `banking_pipeline` orchestrates the banking workflow.
+
+## 2. Task and Op
+
+- **Airflow:** A task represents a unit of work, often implemented using an operator.
+- **Dagster:** An op (`@op`) represents a unit of computation.
+
+In our project, extraction, validation, transformation, and report publication are separate operations.
+
+## 3. Scheduler and Daemon
+
+- **Airflow:** The scheduler determines when DAG runs should be created and manages scheduling.
+- **Dagster:** The Dagster daemon evaluates schedules and sensors and coordinates related background work.
+
+The daily schedule in this project remains disabled until explicitly activated.
+
+## 4. Retries
+
+- **Airflow:** Retry behavior can be configured using task parameters such as `retries` and `retry_delay`.
+- **Dagster:** Retry behavior can be configured using `RetryPolicy`.
+
+Our retry test simulates a temporary failure and verifies that the operation succeeds on a subsequent attempt.
+
+## 5. Monitoring
+
+- **Airflow:** The UI provides DAG-run history, task status, logs, and retry information.
+- **Dagster:** The UI provides run history, step status, logs, and execution details.
+
+These features help identify failures and investigate their causes.
+
+## 6. Backfills
+
+- **Airflow:** Backfills can run historical DAG intervals.
+- **Dagster:** Historical partitions and backfill capabilities can be used when assets and partitions are configured appropriately.
+
+Neither tool automatically guarantees that rerunning business logic will avoid duplicate data.
+
+## 7. Application to the Banking Pipeline
+
+The pipeline follows this dependency order:
+
+SQLite extraction → Data-quality validation → PySpark transformation → Report publication.
+
+If validation fails, downstream transformation and publication must not execute. Safe reruns must preserve transaction uniqueness and report totals. Dagster run-history persistence and business-data idempotency are separate concerns.

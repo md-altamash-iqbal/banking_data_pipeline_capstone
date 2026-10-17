@@ -67,6 +67,7 @@ def test_expected_input_row_count(sample_transactions):
 # TEST 2 - KNOWN CREDIT COUNT
 # --------------------------------------------------
 
+
 def test_credit_transaction_count(sample_transactions):
     credit_count = (
         sample_transactions

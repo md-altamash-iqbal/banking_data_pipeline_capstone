@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-10-17T08:44:47.582854+00:00",
+  "source_database": "D:\\mintways\\banking_data_pipeline\\database\\banking.db",
+  "summary": [
+    {
+      "transaction_type": "CREDIT",
+      "transaction_count": 11,
+      "total_amount": 4060.0,
+      "average_amount": 369.09090909090907
+    },
+    {
+      "transaction_type": "DEBIT",
+      "transaction_count": 9,
+      "total_amount": 675.5,
+      "average_amount": 75.05555555555556
+    }
+  ]
+}

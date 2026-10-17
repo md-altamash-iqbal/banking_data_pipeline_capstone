@@ -1,128 +1,204 @@
+
 import sqlite3
 from pathlib import Path
 
 import pandas as pd
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, coalesce, try_to_date, when
-
-# 1. Create SparkSession
-
-spark = (
-    SparkSession.builder
-    .appName("Week6-Banking-Transformations")
-    .master("local[*]")
-    .getOrCreate()
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import (
+    col,
+    coalesce,
+    try_to_date,
+    when,
 )
 
-# 2. Project path
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+# --------------------------------------------------
+# 1. CREATE SPARK SESSION
+# --------------------------------------------------
 
-DATABASE_PATH = BASE_DIR / "database" / "banking.db"
-
-# 3. Load transaction from banking.db
-
-connection = sqlite3.connect(str(DATABASE_PATH))
-
-try:
-    transactions_pandas = pd.read_sql_query(
-        "SELECT * FROM transactions",
-        connection
+def create_spark_session() -> SparkSession:
+    """Create and return a SparkSession."""
+    return (
+        SparkSession.builder
+        .appName("Week6-Banking-Transformations")
+        .master("local[*]")
+        .getOrCreate()
     )
-finally:
-    connection.close()
 
 
-transactions_df = spark.createDataFrame(transactions_pandas)
+# --------------------------------------------------
+# 2. LOAD TRANSACTIONS FROM SQLITE
+# --------------------------------------------------
 
-# Normalize transaction
+def load_transactions(
+    spark: SparkSession,
+    database_path: Path,
+) -> DataFrame:
+    """Load transactions from banking.db into a Spark DataFrame."""
 
-transactions_df = transactions_df.withColumn(
-    "transaction_date",
-    coalesce(
-        try_to_date(col("transaction_date"), "yyyy-MM-dd"),
-        try_to_date(col("transaction_date"), "M/d/yyyy")
+    connection = sqlite3.connect(str(database_path))
+
+    try:
+        transactions_pandas = pd.read_sql_query(
+            "SELECT * FROM transactions",
+            connection,
+        )
+    finally:
+        connection.close()
+
+    return spark.createDataFrame(transactions_pandas)
+
+
+# --------------------------------------------------
+# 3. NORMALIZE TRANSACTION DATES
+# --------------------------------------------------
+
+def normalize_transaction_dates(
+    transactions_df: DataFrame,
+) -> DataFrame:
+    """Convert supported date formats into a date column."""
+
+    return transactions_df.withColumn(
+        "transaction_date",
+        coalesce(
+            try_to_date(col("transaction_date"), "yyyy-MM-dd"),
+            try_to_date(col("transaction_date"), "M/d/yyyy"),
+        ),
     )
-)
 
-# 4. CREDIT-only transactions
 
-credit_df = transactions_df.filter(
-    transactions_df.transaction_type == "CREDIT"
-)
+# --------------------------------------------------
+# 4. FILTER CREDIT TRANSACTIONS
+# --------------------------------------------------
 
-print("\n" + "=" * 60)
-print("CREDIT-ONLY TRANSACTIONS")
-print("=" * 60)
+def filter_credit_transactions(
+    transactions_df: DataFrame,
+) -> DataFrame:
+    """Return only CREDIT transactions."""
 
-credit_df.show(truncate=False)
-
-print("CREDIT transaction count:", credit_df.count())
-
-# 5. High-value transactions
-# Rule :- Transaction with amount >= 500 are considered high-value.
-  
-HIGH_VALUE_THRESHOLD = 500.0
-
-high_value_df = transactions_df.filter(
-    transactions_df.amount >= HIGH_VALUE_THRESHOLD
-)
-
-print("\n" + "=" * 60)
-print("HIGH-VALUE TRANSACTIONS")
-print("=" * 60)
-
-print(
-    f"High-value threshold: {HIGH_VALUE_THRESHOLD}"
-)
-
-high_value_df.show(truncate=False)
-
-print(
-    "High-value transaction count:",
-    high_value_df.count()
-)
-
-# 6. Selected reporting columns
-
-report_df = transactions_df.select(
-    "transaction_id",
-    "account_id",
-    "transaction_date",
-    "transaction_type",
-    "amount"
-)
-
-print("\n" + "=" * 60)
-print("SELECTED REPORTING COLUMNS")
-print("=" * 60)
-
-report_df.show(truncate=False)
-
-# 7. Derived trasaction category
-
-classified_df = transactions_df.withColumn(
-    "transaction_category",
-    when(
-        transactions_df.amount >= 500,
-        "HIGH_VALUE"
+    return transactions_df.filter(
+        col("transaction_type") == "CREDIT"
     )
-    .when(
-        transactions_df.amount >= 100,
-        "MEDIUM_VALUE"
+
+
+# --------------------------------------------------
+# 5. FILTER HIGH-VALUE TRANSACTIONS
+# --------------------------------------------------
+
+def filter_high_value_transactions(
+    transactions_df: DataFrame,
+    threshold: float = 500.0,
+) -> DataFrame:
+    """Return transactions whose amount meets the threshold."""
+
+    return transactions_df.filter(
+        col("amount") >= threshold
     )
-    .otherwise("LOW_VALUE")
-)
 
-print("\n" + "=" * 60)
-print("DERIVED TRANSACTION CATEGORY")
-print("=" * 60)
 
-classified_df.select(
-    "transaction_id",
-    "transaction_type",
-    "amount",
-    "transaction_category"
-).show(truncate=False)
+# --------------------------------------------------
+# 6. SELECT REPORTING COLUMNS
+# --------------------------------------------------
 
-spark.stop()
+def select_reporting_columns(
+    transactions_df: DataFrame,
+) -> DataFrame:
+    """Select the columns required for reporting."""
+
+    return transactions_df.select(
+        "transaction_id",
+        "account_id",
+        "transaction_date",
+        "transaction_type",
+        "amount",
+    )
+
+
+# --------------------------------------------------
+# 7. CLASSIFY TRANSACTIONS
+# --------------------------------------------------
+
+def classify_transactions(
+    transactions_df: DataFrame,
+) -> DataFrame:
+    """Add a category based on the transaction amount."""
+
+    return transactions_df.withColumn(
+        "transaction_category",
+        when(col("amount") >= 500, "HIGH_VALUE")
+        .when(col("amount") >= 100, "MEDIUM_VALUE")
+        .otherwise("LOW_VALUE"),
+    )
+
+
+# --------------------------------------------------
+# 8. RUN ALL TRANSFORMATIONS
+# --------------------------------------------------
+
+def run_transformations(
+    transactions_df: DataFrame,
+) -> dict[str, DataFrame]:
+    """Execute transformations and return their DataFrames."""
+
+    normalized_df = normalize_transaction_dates(
+        transactions_df
+    )
+
+    return {
+        "credit": filter_credit_transactions(normalized_df),
+        "high_value": filter_high_value_transactions(
+            normalized_df
+        ),
+        "report": select_reporting_columns(normalized_df),
+        "classified": classify_transactions(normalized_df),
+    }
+
+
+# --------------------------------------------------
+# 9. MAIN EXECUTION
+# --------------------------------------------------
+
+def main() -> None:
+    """Load data, run transformations, and display results."""
+
+    base_dir = Path(__file__).resolve().parents[2]
+    database_path = base_dir / "database" / "banking.db"
+
+    spark = create_spark_session()
+
+    try:
+        transactions_df = load_transactions(
+            spark,
+            database_path,
+        )
+
+        results = run_transformations(transactions_df)
+
+        print("\nCREDIT-ONLY TRANSACTIONS")
+        results["credit"].show(truncate=False)
+        print("CREDIT count:", results["credit"].count())
+
+        print("\nHIGH-VALUE TRANSACTIONS")
+        results["high_value"].show(truncate=False)
+        print(
+            "High-value count:",
+            results["high_value"].count(),
+        )
+
+        print("\nSELECTED REPORTING COLUMNS")
+        results["report"].show(truncate=False)
+
+        print("\nDERIVED TRANSACTION CATEGORY")
+        results["classified"].select(
+            "transaction_id",
+            "transaction_type",
+            "amount",
+            "transaction_category",
+        ).show(truncate=False)
+
+    finally:
+        spark.stop()
+
+
+if __name__ == "__main__":
+    main()
