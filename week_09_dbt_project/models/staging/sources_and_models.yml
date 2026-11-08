@@ -1,0 +1,58 @@
+
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Cleaned customer records from the customer seed."
+    columns:
+      - name: customer_id
+        description: "Unique identifier for each customer."
+        data_tests:
+          - unique
+          - not_null
+
+  - name: stg_accounts
+    description: "Cleaned banking account records."
+    columns:
+      - name: account_id
+        description: "Unique identifier for each account."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: "Customer who owns the account."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+
+  - name: stg_transactions
+    description: "Cleaned banking transaction records."
+    columns:
+      - name: transaction_id
+        description: "Unique identifier for each transaction."
+        data_tests:
+          - unique
+          - not_null
+
+      - name: account_id
+        description: "Account associated with the transaction."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_accounts')
+                field: account_id
+
+      - name: transaction_type
+        description: "Type of banking transaction."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values:
+                  - DEPOSIT
+                  - PURCHASE
+                  - WITHDRAWAL

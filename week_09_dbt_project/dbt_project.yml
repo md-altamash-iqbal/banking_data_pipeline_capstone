@@ -1,0 +1,34 @@
+
+# Project name
+name: 'banking_week9'
+
+# Project version
+version: '1.0.0'
+
+# dbt configuration version
+config-version: 2
+
+# Connection profile
+profile: 'banking_week9'
+
+# Project directories
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+analysis-paths: ["analyses"]
+macro-paths: ["macros"]
+
+# Files and folders removed by dbt clean
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Model materializations
+models:
+  banking_week9:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table
