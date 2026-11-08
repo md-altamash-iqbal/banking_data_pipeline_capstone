@@ -1,0 +1,54 @@
+
+version: 2
+
+models:
+  - name: dim_accounts
+    description: >
+      Account dimension containing account details
+      and associated customer information.
+    columns:
+      - name: account_id
+        description: Unique banking account identifier.
+        data_tests:
+          - unique
+          - not_null
+
+      - name: customer_id
+        description: Customer who owns the account.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+
+  - name: fct_daily_account_activity
+    description: >
+      Daily account-level transaction metrics including
+      deposits, outflows and net transaction amount.
+    columns:
+      - name: transaction_date
+        description: Date of banking activity.
+        data_tests:
+          - not_null
+
+      - name: account_id
+        description: Account associated with daily activity.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_accounts')
+                field: account_id
+
+      - name: transaction_count
+        description: Number of transactions for the account on that date.
+
+      - name: total_deposits
+        description: Total deposited amount.
+
+      - name: total_outflows
+        description: Total purchase and withdrawal amount.
+
+      - name: net_amount
+        description: Net amount after deposits and outflows.

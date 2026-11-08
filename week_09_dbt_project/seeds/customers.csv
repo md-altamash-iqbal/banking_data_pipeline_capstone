@@ -1,0 +1,13 @@
+customer_id,customer_name,city,customer_segment
+C001,Alice Johnson,Chicago,Retail
+C002,Bob Smith,New York,Retail
+C003,Carol Davis,Boston,Retail
+C004,David Wilson,Seattle,Retail
+C005,Emma Brown,Chicago,Premium
+C006,Frank Miller,Denver,Retail
+C007,Grace Lee,Austin,Premium
+C008,Henry Clark,Miami,Retail
+C009,Isabella Hall,Boston,Retail
+C010,James Young,Seattle,Premium
+C011,Karen King,Denver,Retail
+C012,Liam Scott,Austin,Retail
